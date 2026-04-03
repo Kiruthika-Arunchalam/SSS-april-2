@@ -106,11 +106,13 @@ df["Inserted_At"] = pd.to_datetime(
     format="%d-%m-%Y %H:%M:%S",
     errors="coerce"
 )
-df["Inserted_Date"] = pd.to_datetime(
+df["Inserted_At"] = pd.to_datetime(
     df["Inserted_At"],
-    format="%d-%m-%Y %H:%M",
+    format="mixed",   # 🔥 handles both HH:MM and HH:MM:SS
+    dayfirst=True,
     errors="coerce"
 )
+st.write(df[df["Inserted_At"].isna()])
 st.write("Unique Dates:", df["Inserted_Date"].unique())
 st.write("Count:", df["Inserted_Date"].nunique())
 # ---------------------------
