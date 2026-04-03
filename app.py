@@ -9,24 +9,26 @@ import os
 # ---------------------------
 st.set_page_config(page_title="SSS Dashboard", layout="wide")
 
-# ---------------------------
-# TITLE
-# ---------------------------
 st.title("📊 SSS DATA ANALYTICS DASHBOARD")
 
 # ---------------------------
-# LOAD DATA
+# LOAD LATEST FILE (NO CACHE)
 # ---------------------------
-def load_data():
-    zip_file = [f for f in os.listdir() if f.endswith(".zip")][0]
+files = [f for f in os.listdir() if f.endswith(".zip")]
 
-    with zipfile.ZipFile(zip_file) as z:
-        file_name = [f for f in z.namelist() if f.endswith(".csv")][0]
-        df = pd.read_csv(z.open(file_name), encoding="cp1252")
+if not files:
+    st.error("❌ No ZIP file found")
+    st.stop()
 
-    return df
+# 🔥 pick latest file
+FILE_PATH = max(files, key=os.path.getmtime)
 
-df = load_data()
+st.write("📁 Using file:", FILE_PATH)
+st.write("📂 Available files:", os.listdir())
+
+with zipfile.ZipFile(FILE_PATH) as z:
+    csv_file = [f for f in z.namelist() if f.endswith(".csv")][0]
+    df = pd.read_csv(z.open(csv_file), encoding="cp1252")
 
 # ---------------------------
 # CLEAN DATA
@@ -36,7 +38,7 @@ df["Service"] = df["Service"].astype(str).str.strip().str.upper()
 df["From_Port"] = df["From_Port"].astype(str).str.strip().str.upper()
 df["To_Port"] = df["To_Port"].astype(str).str.strip().str.upper()
 
-# ✅ FIX DATE PARSING
+# DATE FIX
 df["Inserted_At"] = pd.to_datetime(
     df["Inserted_At"],
     format="mixed",
@@ -44,7 +46,11 @@ df["Inserted_At"] = pd.to_datetime(
     errors="coerce"
 )
 
-df["Inserted_Date"] = df["Inserted_At"]  # keep datetime
+df["Inserted_Date"] = df["Inserted_At"]
+
+# DEBUG
+st.write("Total Rows:", len(df))
+st.write("Unique Dates:", df["Inserted_Date"].dt.date.unique())
 
 # ---------------------------
 # FILTER UI
@@ -64,38 +70,7 @@ from_port = col3.multiselect("From Port", from_port_list)
 to_port = col4.multiselect("To Port", to_port_list)
 
 # ---------------------------
-# DATE FILTER
-# ---------------------------
-valid_dates = df["Inserted_Date"].dropna()
-
-if not valid_dates.empty:
-    min_date = valid_dates.min()
-    max_date = valid_dates.max()
-
-    colA, colB = st.columns(2)
-
-    start_date = colA.date_input(
-        "From Date",
-        value=min_date.date(),
-        min_value=min_date.date(),
-        max_value=max_date.date()
-    )
-
-    end_date = colB.date_input(
-        "To Date",
-        value=max_date.date(),
-        min_value=min_date.date(),
-        max_value=max_date.date()
-    )
-
-    start_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date)
-
-else:
-    start_date = end_date = None
-
-# ---------------------------
-# APPLY FILTERS
+# APPLY FILTERS (FIXED)
 # ---------------------------
 filtered_df = df.copy()
 
@@ -111,13 +86,6 @@ if from_port:
 if to_port:
     filtered_df = filtered_df[filtered_df["To_Port"].isin(to_port)]
 
-# Date filter
-if start_date and end_date:
-    filtered_df = filtered_df[
-        (filtered_df["Inserted_Date"] >= start_date) &
-        (filtered_df["Inserted_Date"] <= end_date)
-    ]
-
 # ---------------------------
 # KPI CARDS
 # ---------------------------
@@ -129,7 +97,7 @@ c3.metric("Terminals", filtered_df["From_Port_Terminal"].nunique())
 c4.metric("Vessels", filtered_df["Vessel_Name"].nunique())
 
 # ---------------------------
-# SUMMARY TABLE WITH TOTAL
+# SUMMARY TABLE
 # ---------------------------
 st.subheader("Date vs Operator Summary")
 
@@ -150,7 +118,6 @@ grand_total = pd.DataFrame({
     "Operator_Count": [summary_df["Operator_Count"].sum()]
 })
 
-# FORMAT DATE
 summary_df["Inserted_Date"] = pd.to_datetime(summary_df["Inserted_Date"]).dt.strftime("%d-%m-%Y")
 
 final_df = pd.concat([summary_df, grand_total], ignore_index=True)
