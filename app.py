@@ -5,89 +5,24 @@ import zipfile
 import os
 
 # ---------------------------
-# CONFIG`
+# CONFIG
 # ---------------------------
 st.set_page_config(page_title="SSS Dashboard", layout="wide")
 
 # ---------------------------
-# THEME
-# ---------------------------
-theme = st.toggle("Dark Mode")
-
-bg_color = "#0e1117" if theme else "white"
-text_color = "white" if theme else "black"
-
-# ---------------------------
-# CSS
-# ---------------------------
-st.markdown(f"""
-<style>
-body {{
-    background-color: {bg_color};
-    color: {text_color};
-}}
-.title {{
-    background: linear-gradient(90deg, #ff9a9e, #a18cd1, #84fab0);
-    padding: 18px;
-    text-align: center;
-    font-size: 30px;
-    font-weight: bold;
-    color: white;
-    border-radius: 12px;
-    margin-bottom: 20px;
-}}
-.section {{
-    background: linear-gradient(90deg, #36d1dc, #5b86e5);
-    padding: 10px;
-    color: white;
-    font-weight: bold;
-    border-radius: 8px;
-    margin-top: 25px;
-}}
-.card {{
-    padding: 25px;
-    border-radius: 14px;
-    color: white;
-    text-align: center;
-    font-weight: bold;
-}}
-.card1 {{ background: linear-gradient(135deg, #ff9a9e, #fad0c4); }}
-.card2 {{ background: linear-gradient(135deg, #a18cd1, #fbc2eb); }}
-.card3 {{ background: linear-gradient(135deg, #f6d365, #fda085); }}
-.card4 {{ background: linear-gradient(135deg, #84fab0, #8fd3f4); }}
-</style>
-""", unsafe_allow_html=True)
-
-# ---------------------------
-# CHART STYLE
-# ---------------------------
-def style_chart(fig):
-    axis_color = "white" if theme else "black"
-    fig.update_layout(
-        plot_bgcolor=bg_color,
-        paper_bgcolor=bg_color,
-        font_color=text_color,
-        xaxis=dict(tickfont=dict(color=axis_color)),
-        yaxis=dict(tickfont=dict(color=axis_color))
-    )
-    return fig
-
-# ---------------------------
 # TITLE
 # ---------------------------
-st.markdown('<div class="title">SSS DATA ANALYTICS DASHBOARD</div>', unsafe_allow_html=True)
+st.title("📊 SSS DATA ANALYTICS DASHBOARD")
 
 # ---------------------------
 # LOAD DATA
 # ---------------------------
-
 def load_data():
     zip_file = [f for f in os.listdir() if f.endswith(".zip")][0]
 
     with zipfile.ZipFile(zip_file) as z:
         file_name = [f for f in z.namelist() if f.endswith(".csv")][0]
-        with z.open(file_name) as f:
-            df = pd.read_csv(f, encoding="cp1252")
+        df = pd.read_csv(z.open(file_name), encoding="cp1252")
 
     return df
 
@@ -100,38 +35,21 @@ df["Operator_Code"] = df["Operator_Code"].astype(str).str.strip().str.upper()
 df["Service"] = df["Service"].astype(str).str.strip().str.upper()
 df["From_Port"] = df["From_Port"].astype(str).str.strip().str.upper()
 df["To_Port"] = df["To_Port"].astype(str).str.strip().str.upper()
-filtered_df = df.copy()
 
-if operator:
-    filtered_df = filtered_df[filtered_df["Operator_Code"].isin(operator)]
-
-if service:
-    filtered_df = filtered_df[filtered_df["Service"].isin(service)]
-
-if from_port:
-    filtered_df = filtered_df[filtered_df["From_Port"].isin(from_port)]
-
-if to_port:
-    filtered_df = filtered_df[filtered_df["To_Port"].isin(to_port)]
-
+# ✅ FIX DATE PARSING
 df["Inserted_At"] = pd.to_datetime(
     df["Inserted_At"],
-    format="%d-%m-%Y %H:%M:%S",
-    errors="coerce"
-)
-df["Inserted_At"] = pd.to_datetime(
-    df["Inserted_At"],
-    format="mixed",   # 🔥 handles both HH:MM and HH:MM:SS
+    format="mixed",
     dayfirst=True,
     errors="coerce"
 )
-st.write(df[df["Inserted_At"].isna()])
-st.write("Unique Dates:", df["Inserted_Date"].unique())
-st.write("Count:", df["Inserted_Date"].nunique())
+
+df["Inserted_Date"] = df["Inserted_At"]  # keep datetime
+
 # ---------------------------
 # FILTER UI
 # ---------------------------
-st.markdown("### Filters")    
+st.subheader("Filters")
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -146,7 +64,7 @@ from_port = col3.multiselect("From Port", from_port_list)
 to_port = col4.multiselect("To Port", to_port_list)
 
 # ---------------------------
-# DATE PICKER (FINAL FIX)
+# DATE FILTER
 # ---------------------------
 valid_dates = df["Inserted_Date"].dropna()
 
@@ -154,149 +72,130 @@ if not valid_dates.empty:
     min_date = valid_dates.min()
     max_date = valid_dates.max()
 
-    date_range = st.date_input(
-        "📅 Select Date Range",
-        value=(min_date.date(), max_date.date()),
+    colA, colB = st.columns(2)
+
+    start_date = colA.date_input(
+        "From Date",
+        value=min_date.date(),
         min_value=min_date.date(),
-        max_value=max_date.date(),
-        key="date_range_fixed"
+        max_value=max_date.date()
     )
 
-    # 🔥 HANDLE ALL TYPES (LIST / TUPLE / SINGLE)
-    if isinstance(date_range, (list, tuple)):
-        if len(date_range) == 2:
-            start_date = date_range[0]
-            end_date = date_range[1]
-        else:
-            start_date = end_date = date_range[0]
-    else:
-        start_date = end_date = date_range
+    end_date = colB.date_input(
+        "To Date",
+        value=max_date.date(),
+        min_value=min_date.date(),
+        max_value=max_date.date()
+    )
 
-    # 🔥 FORCE SCALAR DATETIME
     start_date = pd.to_datetime(start_date)
     end_date = pd.to_datetime(end_date)
 
 else:
     start_date = end_date = None
-    # ---------------------------
-# DEFAULT FILTERS
-# ---------------------------
-if not operator: operator = operator_list
-if not service: service = service_list
-if not from_port: from_port = from_port_list
-if not to_port: to_port = to_port_list
 
 # ---------------------------
 # APPLY FILTERS
 # ---------------------------
-filtered_df = df[
-    (df["Operator_Code"].isin(operator)) &
-    (df["Service"].isin(service)) &
-    (df["From_Port"].isin(from_port)) &
-    (df["To_Port"].isin(to_port))
-]
+filtered_df = df.copy()
 
+if operator:
+    filtered_df = filtered_df[filtered_df["Operator_Code"].isin(operator)]
 
-# ---------------------------
-# DATE FILTER (UPDATED)
-# ---------------------------
+if service:
+    filtered_df = filtered_df[filtered_df["Service"].isin(service)]
+
+if from_port:
+    filtered_df = filtered_df[filtered_df["From_Port"].isin(from_port)]
+
+if to_port:
+    filtered_df = filtered_df[filtered_df["To_Port"].isin(to_port)]
+
+# Date filter
 if start_date and end_date:
     filtered_df = filtered_df[
-        (filtered_df["Inserted_Date"].dt.date >= start_date) &
-        (filtered_df["Inserted_Date"].dt.date <= end_date)
+        (filtered_df["Inserted_Date"] >= start_date) &
+        (filtered_df["Inserted_Date"] <= end_date)
     ]
+
 # ---------------------------
 # KPI CARDS
 # ---------------------------
 c1, c2, c3, c4 = st.columns(4)
 
-c1.markdown(f'<div class="card card1">OPERATORS<br><h1>{filtered_df["Operator_Code"].nunique()}</h1></div>', unsafe_allow_html=True)
-c2.markdown(f'<div class="card card2">PORTS<br><h1>{filtered_df["From_Port"].nunique()}</h1></div>', unsafe_allow_html=True)
-c3.markdown(f'<div class="card card3">TERMINALS<br><h1>{filtered_df["From_Port_Terminal"].nunique()}</h1></div>', unsafe_allow_html=True)
-c4.markdown(f'<div class="card card4">VESSELS<br><h1>{filtered_df["Vessel_Name"].nunique()}</h1></div>', unsafe_allow_html=True)
+c1.metric("Operators", filtered_df["Operator_Code"].nunique())
+c2.metric("Ports", filtered_df["From_Port"].nunique())
+c3.metric("Terminals", filtered_df["From_Port_Terminal"].nunique())
+c4.metric("Vessels", filtered_df["Vessel_Name"].nunique())
 
 # ---------------------------
-# SUMMARY TABLE WITH FINAL TOTAL
+# SUMMARY TABLE WITH TOTAL
 # ---------------------------
-st.markdown('<div class="section">Date vs Operator Summary</div>', unsafe_allow_html=True)
+st.subheader("Date vs Operator Summary")
 
-# Summary per date & operator
 summary_df = (
     filtered_df
     .dropna(subset=["Inserted_Date", "Operator_Code"])
-    .groupby(["Inserted_Date", "Operator_Code"])
+    .groupby([filtered_df["Inserted_Date"].dt.date, "Operator_Code"])
     .size()
     .reset_index(name="Operator_Count")
 )
 
-# Sort
-summary_df = summary_df.sort_values(by=["Inserted_Date", "Operator_Code"])
+summary_df.columns = ["Inserted_Date", "Operator_Code", "Operator_Count"]
 
-# ---------------------------
-# GRAND TOTAL (ONLY ONE ROW)
-# ---------------------------
+# GRAND TOTAL
 grand_total = pd.DataFrame({
     "Inserted_Date": ["TOTAL"],
     "Operator_Code": [""],
     "Operator_Count": [summary_df["Operator_Count"].sum()]
 })
 
-# ---------------------------
 # FORMAT DATE
-# ---------------------------
 summary_df["Inserted_Date"] = pd.to_datetime(summary_df["Inserted_Date"]).dt.strftime("%d-%m-%Y")
 
-# Combine
 final_df = pd.concat([summary_df, grand_total], ignore_index=True)
-
-# ---------------------------
-# RESET INDEX (FIX ISSUE)
-# ---------------------------
 final_df = final_df.reset_index(drop=True)
 
-# Display
-st.dataframe(final_df, use_container_width=True)# ---------------------------
+st.dataframe(final_df, use_container_width=True)
+
+# ---------------------------
 # OPERATOR TREND
 # ---------------------------
-st.markdown('<div class="section">Date Wise Operator Trend</div>', unsafe_allow_html=True)
+st.subheader("Date Wise Operator Trend")
 
 trend = (
-    filtered_df.groupby(["Inserted_Date", "Operator_Code"])
+    filtered_df.groupby([filtered_df["Inserted_Date"].dt.date, "Operator_Code"])
     .size()
     .reset_index(name="Count")
 )
+
+trend.columns = ["Inserted_Date", "Operator_Code", "Count"]
 
 fig = px.bar(
     trend,
     y="Inserted_Date",
     x="Count",
     color="Operator_Code",
-    orientation="h",
-    text="Operator_Code"   # ✅ IMPORTANT LINE
+    orientation="h"
 )
 
-fig.update_traces(
-    textposition="outside",
-    textfont=dict(size=10)
-)
 st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------
 # OPERATOR COMPARISON
 # ---------------------------
-st.markdown('<div class="section">Operator Comparison</div>', unsafe_allow_html=True)
+st.subheader("Operator Comparison")
 
 compare = filtered_df["Operator_Code"].value_counts().reset_index()
 compare.columns = ["Operator", "Count"]
 
 fig_compare = px.bar(compare, x="Operator", y="Count", color="Operator")
-fig_compare = style_chart(fig_compare)
 st.plotly_chart(fig_compare, use_container_width=True)
 
 # ---------------------------
 # TOP ROUTES
 # ---------------------------
-st.markdown('<div class="section">Top Routes</div>', unsafe_allow_html=True)
+st.subheader("Top Routes")
 
 route_df = (
     filtered_df.groupby(["From_Port", "To_Port"])
@@ -308,17 +207,15 @@ route_df["Route"] = route_df["From_Port"] + " → " + route_df["To_Port"]
 route_df = route_df.sort_values(by="Count", ascending=False).head(10)
 
 fig_route = px.bar(route_df, x="Count", y="Route", orientation="h")
-fig_route = style_chart(fig_route)
 st.plotly_chart(fig_route, use_container_width=True)
 
 # ---------------------------
 # SERVICE DISTRIBUTION
 # ---------------------------
-st.markdown('<div class="section">Service Distribution</div>', unsafe_allow_html=True)
+st.subheader("Service Distribution")
 
 service_df = filtered_df["Service"].value_counts().reset_index()
 service_df.columns = ["Service", "Count"]
 
-fig_service = px.bar(service_df.head(10), x="Count", y="Service", orientation="h")
-fig_service = style_chart(fig_service)
+fig_service = px.bar(service_df, x="Count", y="Service", orientation="h")
 st.plotly_chart(fig_service, use_container_width=True)
