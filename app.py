@@ -96,10 +96,23 @@ df = load_data()
 # ---------------------------
 # CLEAN DATA
 # ---------------------------
-df["Operator_Code"] = df["Operator_Code"].astype(str).str.strip()
-df["Service"] = df["Service"].astype(str).str.strip()
+df["Operator_Code"] = df["Operator_Code"].astype(str).str.strip().str.upper()
+df["Service"] = df["Service"].astype(str).str.strip().str.upper()
 df["From_Port"] = df["From_Port"].astype(str).str.strip().str.upper()
 df["To_Port"] = df["To_Port"].astype(str).str.strip().str.upper()
+filtered_df = df.copy()
+
+if operator:
+    filtered_df = filtered_df[filtered_df["Operator_Code"].isin(operator)]
+
+if service:
+    filtered_df = filtered_df[filtered_df["Service"].isin(service)]
+
+if from_port:
+    filtered_df = filtered_df[filtered_df["From_Port"].isin(from_port)]
+
+if to_port:
+    filtered_df = filtered_df[filtered_df["To_Port"].isin(to_port)]
 
 df["Inserted_At"] = pd.to_datetime(
     df["Inserted_At"],
