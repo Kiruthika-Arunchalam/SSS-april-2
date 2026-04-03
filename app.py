@@ -127,7 +127,7 @@ from_port = col3.multiselect("From Port", from_port_list)
 to_port = col4.multiselect("To Port", to_port_list)
 
 # ---------------------------
-# DATE PICKER (SMART FIX)
+# DATE PICKER (FINAL FIX)
 # ---------------------------
 valid_dates = df["Inserted_Date"].dropna()
 
@@ -135,35 +135,31 @@ if not valid_dates.empty:
     min_date = valid_dates.min()
     max_date = valid_dates.max()
 
-    # ✅ If only ONE date → single picker
-    if min_date == max_date:
-        selected_date = st.date_input(
-            "📅 Select Date",
-            value=min_date,
-            min_value=min_date,
-            max_value=max_date
-        )
-        start_date = end_date = selected_date
+    date_range = st.date_input(
+        "📅 Select Date Range",
+        value=(min_date.date(), max_date.date()),
+        min_value=min_date.date(),
+        max_value=max_date.date(),
+        key="date_range_fixed"
+    )
 
-    # ✅ If MULTIPLE dates → range picker
-    else:
-        date_range = st.date_input(
-            "📅 Select Date Range",
-            value=(min_date, max_date),
-            min_value=min_date,
-            max_value=max_date
-        )
-
-        # Handle user selection safely
-        if isinstance(date_range, tuple) and len(date_range) == 2:
-            start_date, end_date = date_range
+    # 🔥 HANDLE ALL TYPES (LIST / TUPLE / SINGLE)
+    if isinstance(date_range, (list, tuple)):
+        if len(date_range) == 2:
+            start_date = date_range[0]
+            end_date = date_range[1]
         else:
-            start_date = end_date = date_range
+            start_date = end_date = date_range[0]
+    else:
+        start_date = end_date = date_range
+
+    # 🔥 FORCE SCALAR DATETIME
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
 
 else:
     start_date = end_date = None
-
-# ---------------------------
+    # ---------------------------
 # DEFAULT FILTERS
 # ---------------------------
 if not operator: operator = operator_list
@@ -186,12 +182,9 @@ filtered_df = df[
 # DATE FILTER (UPDATED)
 # ---------------------------
 if start_date and end_date:
-    start_date = pd.to_datetime(start_date)
-    end_date = pd.to_datetime(end_date) + pd.Timedelta(days=1)  # include full day
-
     filtered_df = filtered_df[
         (filtered_df["Inserted_Date"] >= start_date) &
-        (filtered_df["Inserted_Date"] < end_date)
+        (filtered_df["Inserted_Date"] <= end_date)
     ]
 # ---------------------------
 # KPI CARDS
