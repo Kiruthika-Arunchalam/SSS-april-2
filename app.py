@@ -106,7 +106,11 @@ df["Inserted_At"] = pd.to_datetime(
     format="%d-%m-%Y %H:%M:%S",
     errors="coerce"
 )
-df["Inserted_Date"] = df["Inserted_At"].dt.normalize()
+df["Inserted_Date"] = pd.to_datetime(
+    df["Inserted_At"],
+    format="%d-%m-%Y %H:%M",
+    errors="coerce"
+)
 st.write("Unique Dates:", df["Inserted_Date"].unique())
 st.write("Count:", df["Inserted_Date"].nunique())
 # ---------------------------
@@ -183,8 +187,8 @@ filtered_df = df[
 # ---------------------------
 if start_date and end_date:
     filtered_df = filtered_df[
-        (filtered_df["Inserted_Date"] >= start_date) &
-        (filtered_df["Inserted_Date"] <= end_date)
+        (filtered_df["Inserted_Date"].dt.date >= start_date) &
+        (filtered_df["Inserted_Date"].dt.date <= end_date)
     ]
 # ---------------------------
 # KPI CARDS
