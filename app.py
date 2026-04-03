@@ -112,7 +112,7 @@ st.write("Count:", df["Inserted_Date"].nunique())
 # ---------------------------
 # FILTER UI
 # ---------------------------
-st.markdown("### Filters")
+st.markdown("### Filters")    
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -186,9 +186,12 @@ filtered_df = df[
 # DATE FILTER (UPDATED)
 # ---------------------------
 if start_date and end_date:
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date) + pd.Timedelta(days=1)  # include full day
+
     filtered_df = filtered_df[
         (filtered_df["Inserted_Date"] >= start_date) &
-        (filtered_df["Inserted_Date"] <= end_date)
+        (filtered_df["Inserted_Date"] < end_date)
     ]
 # ---------------------------
 # KPI CARDS
