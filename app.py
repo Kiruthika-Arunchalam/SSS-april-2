@@ -101,11 +101,14 @@ df["Service"] = df["Service"].astype(str).str.strip()
 df["From_Port"] = df["From_Port"].astype(str).str.strip().str.upper()
 df["To_Port"] = df["To_Port"].astype(str).str.strip().str.upper()
 
-df["Inserted_At"] = pd.to_datetime(df["Inserted_At"], errors="coerce", dayfirst=True)
-
-# ✅ IMPORTANT: use ONLY date type
-df["Inserted_Date"] = df["Inserted_At"].dt.date
-
+df["Inserted_At"] = pd.to_datetime(
+    df["Inserted_At"],
+    format="%d-%m-%Y %H:%M:%S",
+    errors="coerce"
+)
+df["Inserted_Date"] = df["Inserted_At"].dt.normalize()
+st.write("Unique Dates:", df["Inserted_Date"].unique())
+st.write("Count:", df["Inserted_Date"].nunique())
 # ---------------------------
 # FILTER UI
 # ---------------------------
